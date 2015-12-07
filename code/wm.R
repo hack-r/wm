@@ -30,9 +30,13 @@ samp  <- fread("sample_submission.csv")
 h2o.init(nthreads=-1)
 
 ##############
-test.pred <- fread("E:\\temp\\Jason\\test_pred.csv")
-
+# Read in data from H2O web browser flow
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf_100_25percent.csv")
 test.pred <- as.data.frame(test.pred)
+
+summary(test.pred)
+
+test.pred$predict <- NULL
 test.pred$Weekday <- NULL
 test.pred$Upc     <- NULL
 test.pred$DepartmentDescription <- NULL
@@ -89,8 +93,13 @@ pred[,.(
   TripType_999 = mean(p999, na.rm = T)
 ),VisitNumber]
 
+summary(pred)
 
+saveRDS(sub, "init_submit.RDS")
+write.csv(sub, "sub_glm.csv", row.names = F)
 ##############
+
+
 train$TripType_3   <- 0
 train$TripType_4   <- 0
 train$TripType_5   <- 0
