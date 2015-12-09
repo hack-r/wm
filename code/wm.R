@@ -36,12 +36,85 @@ train3 <- sqldf("select a.*, b.records from train a left join train2 b on a.Visi
 test2 <- sqldf("select VisitNumber, count(*) as records from test group by VisitNumber")
 test3 <- sqldf("select a.*, b.records from test a left join test2 b on a.VisitNumber = b.VisitNumber")
 
-write.csv(train3, "train_with_record_counts.csv", row.names = F)
-write.csv(test3, "test_with_record_counts.csv", row.names = F)
+#write.csv(train3, "train_with_record_counts.csv", row.names = F)
+#write.csv(test3, "test_with_record_counts.csv", row.names = F)
 
+rm(train, train2)
+train <- train3
+rm(train3)
+test <- test3
+rm(test2, test3)
+
+
+
+train$sunday_flag    <- 0
+train$monday_flag    <- 0
+train$tuesday_flag   <- 0
+train$wednesday_flag <- 0
+train$thursday_flag  <- 0
+train$friday_flag    <- 0
+train$saturday_flag  <- 0
+train$sunday_flag[train$Weekday == "Sunday"]       <- 1
+train$monday_flag[train$Weekday == "Monday"]       <- 1
+train$tuesday_flag[train$Weekday == "Tuesday"]     <- 1
+train$wednesday_flag[train$Weekday == "Wednesday"] <- 1
+train$thursday_flag[train$Weekday == "Thursday"]   <- 1
+train$friday_flag[train$Weekday == "Friday"]       <- 1
+train$saturday_flag[train$Weekday == "Saturday"]   <- 1
+
+train$scan_over_3_flag <- 0
+train$scan_over_3_flag[train$ScanCount > 3] <- 1
+
+train$scan_1_flag <- 0
+train$scan_1_flag[train$ScanCount == 1] <- 1
+
+train$return_flag <- 0
+train$return_flag[train$ScanCount < 0] <- 1
+
+train$scan_over_3_sunday_interaction <- train$scan_over_3_flag * train$sunday_flag
+
+train$saturday_return <- train$saturday_flag * train$return_flag
+
+train$sunday_return <- train$sunday_flag * train$return_flag
+
+
+test$sunday_flag    <- 0
+test$monday_flag    <- 0
+test$tuesday_flag   <- 0
+test$wednesday_flag <- 0
+test$thursday_flag  <- 0
+test$friday_flag    <- 0
+test$saturday_flag  <- 0
+test$sunday_flag[test$Weekday == "Sunday"]       <- 1
+test$monday_flag[test$Weekday == "Monday"]       <- 1
+test$tuesday_flag[test$Weekday == "Tuesday"]     <- 1
+test$wednesday_flag[test$Weekday == "Wednesday"] <- 1
+test$thursday_flag[test$Weekday == "Thursday"]   <- 1
+test$friday_flag[test$Weekday == "Friday"]       <- 1
+test$saturday_flag[test$Weekday == "Saturday"]   <- 1
+
+test$scan_over_3_flag <- 0
+test$scan_over_3_flag[test$ScanCount > 3] <- 1
+
+test$scan_1_flag <- 0
+test$scan_1_flag[test$ScanCount == 1] <- 1
+
+test$return_flag <- 0
+test$return_flag[test$ScanCount < 0] <- 1
+
+test$scan_over_3_sunday_interaction <- test$scan_over_3_flag * test$sunday_flag
+
+test$saturday_return <- test$saturday_flag * test$return_flag
+
+test$sunday_return <- test$sunday_flag * test$return_flag
+
+saveRDS(train, "train_enhanced.RDS")
+saveRDS(test, "test_enhanced.RDS")
+write.csv(train, "train_enhanced.csv")
+write.csv(test, "test_enhanced.csv")
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf750_multinomial_100lambda.csv")
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf750_with_multinomial_100lambda.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -103,8 +176,3 @@ saveRDS(sub, "drf750_multinomial_100lambda.RDS")
 write.csv(sub, "drf750_multinomial_100lambda.csv", row.names = F)
 ##############
 
-rm(train, train2)
-train <- train3
-rm(train3)
-test <- test3
-rm(test2, test3)
