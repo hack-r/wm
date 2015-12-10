@@ -23,7 +23,7 @@ setwd("T://RNA//Baltimore//Jason//ad_hoc//wm//data")
 
 #install.packages("pacman")
 require(pacman)
-pacman::p_load(bit64, data.table, dplyr, Metrics, h2o, sqldf, glmulti)
+pacman::p_load(bit64, data.table, dplyr, Metrics, h2o, sqldf, glmulti, nnet)
 train <- fread("train.csv")
 test  <- fread("test.csv")
 samp  <- fread("sample_submission.csv")
@@ -168,7 +168,7 @@ write.csv(test, "test_enhanced.csv", row.names =F)
 
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("C:\\Users\\jmiller\\Downloads\\nnet.csv")
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf_glm_prebal.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -226,7 +226,25 @@ pred[,.(
 
 summary(pred)
 
-saveRDS(sub, "nnet.RDS")
-write.csv(sub, "nnet.csv", row.names = F)
+saveRDS(sub, "drf_glm_prebal.RDS")
+write.csv(sub, "drf_glm_prebal.csv", row.names = F)
 ##############
 
+
+# Experimental - pre-balancing and reducing the data ----------------------
+a <- train[NULL,]
+
+for(i in levels(train$TripType)){
+  a <- rbind(a, sample_n(train[train$TripType == i,],35))
+}
+
+train.tmp <- setDT(a)[ ,lapply(.SD, function(x) if(is.numeric(x)) mean(x, na.rm=TRUE) else
+                names(which.max(table(x)))) , by=VisitNumber]
+
+test.tmp <- setDT(test)[ ,lapply(.SD, function(x) if(is.numeric(x)) mean(x, na.rm=TRUE) else
+                names(which.max(table(x)))) , by=VisitNumber]
+write.csv(train.tmp, "train_special.csv", row.names = F)
+write.csv(test.tmp,  "test_special.csv", row.names = F)
+
+saveRDS(train.tmp, "train_tmp.RDS")
+saveRDS(test.tmp, "test_tmp.RDS")
