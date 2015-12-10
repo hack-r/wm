@@ -23,21 +23,36 @@ setwd("T://RNA//Baltimore//Jason//ad_hoc//wm//data")
 
 #install.packages("pacman")
 require(pacman)
-pacman::p_load(bit64, data.table, dplyr, Metrics, h2o, sqldf)
+pacman::p_load(bit64, data.table, dplyr, Metrics, h2o, sqldf, glmulti)
 train <- fread("train.csv")
 test  <- fread("test.csv")
 samp  <- fread("sample_submission.csv")
 h2o.init(nthreads=-1)
 
+# Set initial data types --------------------------------------------------
+train$Upc <- as.numeric(train$Upc)
+test$Upc  <- as.numeric(test$Upc)
 
-train2 <- sqldf("select VisitNumber, count(*) as records from train group by VisitNumber")
+train$Weekday <- as.factor(train$Weekday)
+test$Weekday  <- as.factor(test$Weekday)
+
+train$DepartmentDescription <- as.factor(train$DepartmentDescription)
+test$DepartmentDescription  <- as.factor(test$DepartmentDescription)
+
+train$FinelineNumber <- as.factor(train$FinelineNumber)
+test$FinelineNumber  <- as.factor(test$FinelineNumber)
+
+train$VisitNumber <- as.factor(train$VisitNumber)
+test$VisitNumber  <- as.factor(test$VisitNumber)
+
+train$TripType <- as.factor(train$TripType)
+
+# Add record count --------------------------------------------------------
+train2 <- sqldf("select VisitNumber, count(VisitNumber) as records from train group by VisitNumber")
 train3 <- sqldf("select a.*, b.records from train a left join train2 b on a.VisitNumber = b.VisitNumber")
 
-test2 <- sqldf("select VisitNumber, count(*) as records from test group by VisitNumber")
+test2 <- sqldf("select VisitNumber, count(VisitNumber) as records from test group by VisitNumber")
 test3 <- sqldf("select a.*, b.records from test a left join test2 b on a.VisitNumber = b.VisitNumber")
-
-#write.csv(train3, "train_with_record_counts.csv", row.names = F)
-#write.csv(test3, "test_with_record_counts.csv", row.names = F)
 
 rm(train, train2)
 train <- train3
@@ -45,7 +60,7 @@ rm(train3)
 test <- test3
 rm(test2, test3)
 
-
+# Add other flags ---------------------------------------------------------
 train$sunday_flag    <- 0
 train$monday_flag    <- 0
 train$tuesday_flag   <- 0
@@ -78,6 +93,13 @@ train$sunday_return <- train$sunday_flag * train$return_flag
 
 train$flag_weekend <- 0
 train$flag_weekend[train$sunday_flag ==1 | train$saturday_flag ==1] <- 1
+
+train$upc_flag <- 0
+train$upc_flag[train$Upc < 10000] <- 1
+train$Upc <- NULL
+
+train$interaction_weekend_records <- 0
+train$interaction_weekend_records <- train$flag_weekend * train$records
 
 test$sunday_flag    <- 0
 test$monday_flag    <- 0
@@ -112,10 +134,39 @@ test$sunday_return <- test$sunday_flag * test$return_flag
 test$flag_weekend <- 0
 test$flag_weekend[test$sunday_flag == 1| test$saturday_flag ==1] <- 1
 
+test$upc_flag <- 0
+test$upc_flag[test$Upc < 10000] <- 1
+test$Upc <- NULL
+
+test$interaction_weekend_records <- 0
+test$interaction_weekend_records <- test$flag_weekend * test$records
+
+
+# Remove unneeded columns -------------------------------------------------
+train$sunday_flag    <- NULL
+train$monday_flag    <- NULL
+train$tuesday_flag   <- NULL
+train$wednesday_flag <- NULL
+train$thursday_flag  <- NULL
+train$friday_flag    <- NULL
+train$saturday_flag  <- NULL
+
+test$sunday_flag    <- NULL
+test$monday_flag    <- NULL
+test$tuesday_flag   <- NULL
+test$wednesday_flag <- NULL
+test$thursday_flag  <- NULL
+test$friday_flag    <- NULL
+test$saturday_flag  <- NULL
+
+
+# Save pre-H2O data -------------------------------------------------------
 saveRDS(train, "train_enhanced.RDS")
 saveRDS(test, "test_enhanced.RDS")
 write.csv(train, "train_enhanced.csv",row.names = F)
 write.csv(test, "test_enhanced.csv", row.names =F)
+
+
 ##############
 # Read in data from H2O web browser flow
 test.pred <- fread("C:\\Users\\jmiller\\Downloads\\nnet.csv")
