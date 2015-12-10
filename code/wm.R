@@ -159,7 +159,6 @@ test$thursday_flag  <- NULL
 test$friday_flag    <- NULL
 test$saturday_flag  <- NULL
 
-
 # Save pre-H2O data -------------------------------------------------------
 saveRDS(train, "train_enhanced.RDS")
 saveRDS(test, "test_enhanced.RDS")
