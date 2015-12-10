@@ -23,7 +23,8 @@ setwd("T://RNA//Baltimore//Jason//ad_hoc//wm//data")
 
 #install.packages("pacman")
 require(pacman)
-pacman::p_load(bit64, data.table, dplyr, Metrics, h2o, sqldf, glmulti, nnet)
+pacman::p_load(bit64, caret, data.table, dplyr, glmulti, h2o,
+               Metrics, mlbench, nnet, sqldf)
 train <- fread("train.csv")
 test  <- fread("test.csv")
 samp  <- fread("sample_submission.csv")
