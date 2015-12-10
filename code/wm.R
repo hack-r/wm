@@ -110,11 +110,11 @@ test$sunday_return <- test$sunday_flag * test$return_flag
 
 saveRDS(train, "train_enhanced.RDS")
 saveRDS(test, "test_enhanced.RDS")
-write.csv(train, "train_enhanced.csv")
-write.csv(test, "test_enhanced.csv")
+write.csv(train, "train_enhanced.csv",row.names = F)
+write.csv(test, "test_enhanced.csv", row.names =F)
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf750_with_multinomial_100lambda.csv")
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\nnet_glm.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -172,7 +172,7 @@ pred[,.(
 
 summary(pred)
 
-saveRDS(sub, "drf750_multinomial_100lambda.RDS")
-write.csv(sub, "drf750_multinomial_100lambda.csv", row.names = F)
+saveRDS(sub, "nnet_glm.RDS")
+write.csv(sub, "nnet_glm.csv", row.names = F)
 ##############
 
