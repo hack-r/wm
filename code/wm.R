@@ -114,7 +114,7 @@ write.csv(train, "train_enhanced.csv",row.names = F)
 write.csv(test, "test_enhanced.csv", row.names =F)
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("C:\\Users\\jmiller\\Downloads\\nnet_glm.csv")
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\nnet.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -172,7 +172,7 @@ pred[,.(
 
 summary(pred)
 
-saveRDS(sub, "nnet_glm.RDS")
-write.csv(sub, "nnet_glm.csv", row.names = F)
+saveRDS(sub, "nnet.RDS")
+write.csv(sub, "nnet.csv", row.names = F)
 ##############
 
