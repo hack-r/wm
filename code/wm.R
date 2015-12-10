@@ -46,7 +46,6 @@ test <- test3
 rm(test2, test3)
 
 
-
 train$sunday_flag    <- 0
 train$monday_flag    <- 0
 train$tuesday_flag   <- 0
@@ -77,6 +76,8 @@ train$saturday_return <- train$saturday_flag * train$return_flag
 
 train$sunday_return <- train$sunday_flag * train$return_flag
 
+train$flag_weekend <- 0
+train$flag_weekend[train$sunday_flag ==1 | train$saturday_flag ==1] <- 1
 
 test$sunday_flag    <- 0
 test$monday_flag    <- 0
@@ -107,6 +108,9 @@ test$scan_over_3_sunday_interaction <- test$scan_over_3_flag * test$sunday_flag
 test$saturday_return <- test$saturday_flag * test$return_flag
 
 test$sunday_return <- test$sunday_flag * test$return_flag
+
+test$flag_weekend <- 0
+test$flag_weekend[test$sunday_flag == 1| test$saturday_flag ==1] <- 1
 
 saveRDS(train, "train_enhanced.RDS")
 saveRDS(test, "test_enhanced.RDS")
