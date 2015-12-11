@@ -24,7 +24,7 @@ setwd("T://RNA//Baltimore//Jason//ad_hoc//wm//data")
 #install.packages("pacman")
 require(pacman)
 pacman::p_load(bit64, caret, data.table, dplyr, glmulti, h2o,
-               Metrics, mlbench, nnet, sqldf)
+               Metrics, mlbench, nnet, pls, rattle, sqldf, varSelRF)
 train <- fread("train.csv")
 test  <- fread("test.csv")
 samp  <- fread("sample_submission.csv")
@@ -61,7 +61,8 @@ rm(train3)
 test <- test3
 rm(test2, test3)
 
-# Add other flags ---------------------------------------------------------
+
+# Add flags/interactiosn/features to Train --------------------------------
 train$sunday_flag    <- 0
 train$monday_flag    <- 0
 train$tuesday_flag   <- 0
@@ -97,11 +98,15 @@ train$flag_weekend[train$sunday_flag ==1 | train$saturday_flag ==1] <- 1
 
 train$upc_flag <- 0
 train$upc_flag[train$Upc < 10000] <- 1
-train$Upc <- NULL
+#train$Upc <- NULL
 
 train$interaction_weekend_records <- 0
 train$interaction_weekend_records <- train$flag_weekend * train$records
 
+dept <- as.matrix(cbind(train$DepartmentDescription) )
+dept <- with(train, data.frame(class.ind(DepartmentDescription), train[,]))
+
+# Same flags for Test -----------------------------------------------------
 test$sunday_flag    <- 0
 test$monday_flag    <- 0
 test$tuesday_flag   <- 0
@@ -137,28 +142,28 @@ test$flag_weekend[test$sunday_flag == 1| test$saturday_flag ==1] <- 1
 
 test$upc_flag <- 0
 test$upc_flag[test$Upc < 10000] <- 1
-test$Upc <- NULL
+#test$Upc <- NULL
 
 test$interaction_weekend_records <- 0
 test$interaction_weekend_records <- test$flag_weekend * test$records
 
 
 # Remove unneeded columns -------------------------------------------------
-train$sunday_flag    <- NULL
-train$monday_flag    <- NULL
-train$tuesday_flag   <- NULL
-train$wednesday_flag <- NULL
-train$thursday_flag  <- NULL
-train$friday_flag    <- NULL
-train$saturday_flag  <- NULL
-
-test$sunday_flag    <- NULL
-test$monday_flag    <- NULL
-test$tuesday_flag   <- NULL
-test$wednesday_flag <- NULL
-test$thursday_flag  <- NULL
-test$friday_flag    <- NULL
-test$saturday_flag  <- NULL
+# train$sunday_flag    <- NULL
+# train$monday_flag    <- NULL
+# train$tuesday_flag   <- NULL
+# train$wednesday_flag <- NULL
+# train$thursday_flag  <- NULL
+# train$friday_flag    <- NULL
+# train$saturday_flag  <- NULL
+#
+# test$sunday_flag    <- NULL
+# test$monday_flag    <- NULL
+# test$tuesday_flag   <- NULL
+# test$wednesday_flag <- NULL
+# test$thursday_flag  <- NULL
+# test$friday_flag    <- NULL
+# test$saturday_flag  <- NULL
 
 # Save pre-H2O data -------------------------------------------------------
 saveRDS(train, "train_enhanced.RDS")
@@ -229,23 +234,3 @@ summary(pred)
 
 saveRDS(sub, "drf_glm_prebal.RDS")
 write.csv(sub, "drf_glm_prebal.csv", row.names = F)
-##############
-
-
-# Experimental - pre-balancing and reducing the data ----------------------
-a <- train[NULL,]
-
-for(i in levels(train$TripType)){
-  a <- rbind(a, sample_n(train[train$TripType == i,],35))
-}
-
-train.tmp <- setDT(a)[ ,lapply(.SD, function(x) if(is.numeric(x)) mean(x, na.rm=TRUE) else
-                names(which.max(table(x)))) , by=VisitNumber]
-
-test.tmp <- setDT(test)[ ,lapply(.SD, function(x) if(is.numeric(x)) mean(x, na.rm=TRUE) else
-                names(which.max(table(x)))) , by=VisitNumber]
-write.csv(train.tmp, "train_special.csv", row.names = F)
-write.csv(test.tmp,  "test_special.csv", row.names = F)
-
-saveRDS(train.tmp, "train_tmp.RDS")
-saveRDS(test.tmp, "test_tmp.RDS")

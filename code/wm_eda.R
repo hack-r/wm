@@ -33,33 +33,38 @@ glmulti.lm.out@formulas
 
 
 # Predict flag_39_40 ------------------------------------------------------
-train$sunday_flag    <- NULL
-train$monday_flag    <- NULL
-train$tuesday_flag   <- NULL
-train$wednesday_flag <- NULL
-train$thursday_flag  <- NULL
-train$friday_flag    <- NULL
-train$saturday_flag  <- NULL
-train$flag_39        <- NULL
-train$flag_40        <- NULL
-
-test$sunday_flag    <- NULL
-test$monday_flag    <- NULL
-test$tuesday_flag   <- NULL
-test$wednesday_flag <- NULL
-test$thursday_flag  <- NULL
-test$friday_flag    <- NULL
-test$saturday_flag  <- NULL
-test$flag_39        <- NULL
-test$flag_40        <- NULL
 
 set.seed(3456)
-train.samp <- sample_n(train,10000)
+train.samp <- sample_n(train, 20000)
 trainIndex <- createDataPartition(train.samp$flag_39_40, p = .7,
                                   list = FALSE,
                                   times = 1)
 head(trainIndex,100)
-flagTrain <- train[ trainIndex,]
-flagTest  <- train[-trainIndex,]
+flagTrain <- train.samp[ trainIndex,]
+flagTest  <- train.samp[-trainIndex,]
 
-summary(glm("flag_39_40 ~ .", data = flagTrain), family = "binomial", link = "logit")
+flagTrain$sunday_flag    <- NULL
+flagTrain$monday_flag    <- NULL
+flagTrain$tuesday_flag   <- NULL
+flagTrain$wednesday_flag <- NULL
+flagTrain$thursday_flag  <- NULL
+flagTrain$friday_flag    <- NULL
+flagTrain$saturday_flag  <- NULL
+flagTrain$flag_39        <- NULL
+flagTrain$flag_40        <- NULL
+
+flagTest$sunday_flag    <- NULL
+flagTest$monday_flag    <- NULL
+flagTest$tuesday_flag   <- NULL
+flagTest$wednesday_flag <- NULL
+flagTest$thursday_flag  <- NULL
+flagTest$friday_flag    <- NULL
+flagTest$saturday_flag  <- NULL
+flagTest$flag_39        <- NULL
+flagTest$flag_40        <- NULL
+
+summary(flag_model <- glm("flag_40 ~ FinelineNumber + Weekday + records + interaction_weekend_records", data = flagTrain), family = "binomial", link = "logit")
+
+flag_pred <- predict(flag_model, newdata = flagTest, type = "response")
+
+confusion.matrix(flag_pred, flagTest$flag_40)
