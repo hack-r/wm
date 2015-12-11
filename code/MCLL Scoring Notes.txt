@@ -1,0 +1,176 @@
+
+   ===================================
+   Examples to understand MCLL scoring
+   ===================================
+
+   To keep it simple, assume the total test set consits of one row, and there are just 8 types of visits.
+   The true type of every visit is always the leftmost one, type_id 1.
+
+   How Kaggle calculates the scoring (just educated guessing):
+   Your submitted posibilities get rescaled (each p_j, divided by sum of all p_j), then the min-max-rule is applied.
+   Unless all your submitted posibilities are "0", --> the sum of all p_j is zero, then the rescaling step is skipped.
+   For more info about the min-max rule, see last part of this pastebin: Appendix - "The min-max rule".
+
+
+   ===================================
+   1) Submitting "All Zeroes"
+
+   type_id     1  2  3  4  5  6  7  8
+
+         y_j   1  0  0  0  0  0  0  0
+   sub1  p_j   0  0  0  0  0  0  0  0
+
+   Evaluation of your submission:
+   1) all submitted posibilities are zero --> skip rescale step
+   2) apply min-max-rule [0 --> 0.0000000000000001]
+
+   Calculate MCLL function:
+
+   Score = y_1 * log( p_1              ) + y_2 * log( p_2 ) ...
+   Score = 1   * log(0.0000000000000001) + 0   * log( 0.00..1 ) ...
+   -----------------
+   Score = -34.52
+
+
+   ===================================
+   2) Submitting "All Ones"
+
+   type_id     1  2  3  4  5  6  7  8
+
+         y_j   1  0  0  0  0  0  0  0
+   sub1  p_j   1  1  1  1  1  1  1  1
+
+   Evaluation of your submission:
+   1) rescale
+      sum p_j  = 8
+      each p_j = 0.125  [each p_j that was 1, becomes 0.125]
+   2) apply min-max-rule [nothing changes]
+
+   Calculate MCLL function:
+
+   Score = y_1 * log( p_1 ) + y_2 * log( p_2 ) ...
+   Score = 1   * log(0.125) + 0 * log( 0.125 ) ...
+   -----------------
+   Score = -2.08
+
+   ====================================
+   Result:
+   - "all ones" is way better than "all zeroes"
+   - the MCLL does not punish guesses for multiple classes "that much"
+   =====================================
+
+
+   =====================================
+   For submission 3, the model can accurately predict the top 4 visit types ( predicts type 1-4 )
+
+   3) Sumitting "Half Ones", a slightly better model
+
+   type_id     1  2  3  4  5  6  7  8
+
+         y_j   1  0  0  0  0  0  0  0
+   sub1  p_j   1  1  1  1  0  0  0  0
+
+   Evaluation of your submission:
+   1) rescale
+      sum p_j  = 4
+      each p_j = 0.25
+   2) apply min-max-rule [0 --> 0.0000000000000001]
+
+   Calculate MCLL function:
+
+   Score = y_1 * log( p_1 ) + y_2 * log( p_2 ) ...
+   Score = 1   * log(0.25) + 0 * log( 0.25 ) ...
+   -----------------
+   Score = -1.39
+
+
+   =====================================
+   For submission 4, the model can accurately predict the top 2 visit types ( predicts type 1-2 )
+
+   4) Sumitting "The top-2", a good model
+
+   type_id     1  2  3  4  5  6  7  8
+
+         y_j   1  0  0  0  0  0  0  0
+   sub1  p_j   1  1  0  0  0  0  0  0
+
+   Evaluation of your submission:
+   1) rescale
+      sum p_j  = 2
+      each p_j = 0.5
+   2) apply min-max-rule [0 --> 0.0000000000000001]
+
+   Calculate MCLL function:
+
+   Score = y_1 * log( p_1 ) + y_2 * log( p_2 ) ...
+   Score = 1   * log(0.5) + 0 * log( 0.25 ) ...
+   -----------------
+   Score = -0.69
+
+
+   ======================================
+   For submission 5, the model is perfect and learned to always predict the correct type ( type 1 )
+
+   5) Sumitting "The top-1", a perfect model
+
+   type_id     1  2  3  4  5  6  7  8
+
+         y_j   1  0  0  0  0  0  0  0
+   sub1  p_j   1  0  0  0  0  0  0  0
+
+   Evaluation of your submission:
+   1) rescale
+      sum p_j  = 1
+      each p_j = 1
+   2) apply min-max-rule [0 --> 0.0000000000000001]
+      apply min-max-rule [1 --> 0.9999999999999999]
+
+   Calculate MCLL function:
+
+   Score = y_1 * log( p_1 ) + y_2 * log( p_2 ) ...
+   Score = 1   * log(0.9999999999999999) + 0 * log( 0.25 ) ...
+   -----------------
+   Score = -0.00000000000000111
+
+   ======================================
+   Result:
+
+   What to take away from this and use for this competiton?
+   --------------------------------------------------------
+
+   - "All Ones" beats "All Zeroes", and probably the forest cover benchmark sample
+
+   - the MCLL does not punish guesses for multiple classes "that much"
+
+   - it might be usefull to focus on predicting the top-2 types at first, instead of the true top-1 type
+
+    So a submission would look like:
+
+    VisitNumber, TripType_3, TripType_4 ...
+
+    1, 0, 0, 0, 0, 0.5, 0, 0, 0.5, 0, 0 ... or like:
+
+    1, 0, 0, 0, 0, 0.6, 0, 0, 0.4, 0, 0 ... instead of :
+
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0 ... .
+
+   =======================================================================
+   Appendix: The "min-max-rule"
+   =======================================================================
+
+   Quote from "EVALUATION" page:
+   "In order to avoid the extremes of the log function, predicted probabilities are replaced with max(min(p,1−10^−15),10^-15)"
+
+   p = 0
+
+   apply inner min function: 0 is smaller than 1 - 1e-15 --> 0
+   apply outer max function: 1e-15 is bigger than 0 --> 1e-15
+   ---> our submitted probability p, was 0, becomes 1e-15 (~0.0000000000000001)
+
+   p = 1
+
+   apply inner min function: 1 - 1e-15 is smaller than 1 --> 1 - 1e-15 (~0.9999999999999999)
+   apply outer max function: 1 - 1e-15 is bigger than 1e-15 --> 1 - 1e-15 (~0.9999999999999999)
+   ---> our submitted probability p, was 1, becomes 1 - 1e-15 (~0.9999999999999999)
+
+   Why do this? "This is done to avoid the extremes of the log-function"
