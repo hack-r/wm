@@ -23,12 +23,15 @@ setwd("T://RNA//Baltimore//Jason//ad_hoc//wm//data")
 
 #install.packages("pacman")
 require(pacman)
-pacman::p_load(bit64, caret, data.table, dplyr, glmulti, h2o,
+pacman::p_load(bit64, caret, data.table, dplyr, FactoMineR, glmulti, h2o,
                Metrics, mlbench, nnet, pls, rattle, sqldf, varSelRF)
+h2o.init(nthreads=-1)
+
+
+# Raw data import ---------------------------------------------------------
 train <- fread("train.csv")
 test  <- fread("test.csv")
 samp  <- fread("sample_submission.csv")
-h2o.init(nthreads=-1)
 
 # Set initial data types --------------------------------------------------
 train$Upc <- as.numeric(train$Upc)
@@ -58,9 +61,9 @@ test3 <- sqldf("select a.*, b.records from test a left join test2 b on a.VisitNu
 rm(train, train2)
 train <- train3
 rm(train3)
+
 test <- test3
 rm(test2, test3)
-
 
 # Add flags/interactiosn/features to Train --------------------------------
 train$sunday_flag    <- 0
@@ -100,11 +103,41 @@ train$upc_flag <- 0
 train$upc_flag[train$Upc < 10000] <- 1
 #train$Upc <- NULL
 
+train$top_upc_flag <- 0
+train$top_upc_flag[train$Upc %in% c(9218868437227407360, 60538862097, 7874235186, 7874235187, 68113107862, 60538871457)] <- 1
+
 train$interaction_weekend_records <- 0
 train$interaction_weekend_records <- train$flag_weekend * train$records
 
-dept <- as.matrix(cbind(train$DepartmentDescription) )
-dept <- with(train, data.frame(class.ind(DepartmentDescription), train[,]))
+train$flag_fineline <- 0
+train$flag_fineline[train$FinelineNumber %in% c(4138, 4306, 4451, 4628, 6404, 635, 6302, 6111, 6101)] <- 1
+
+## Batch factor to indicators
+train <- with(train, data.frame(class.ind(DepartmentDescription), train[,]))
+
+## Model-based
+flag_model         <- readRDS("flag40_model.RDS")
+train$flag40_model <- predict(flag_model, newdata=train, type = "response")
+
+## Counts of top departments
+tmp <- aggregate(train$"PERSONAL.CARE", by = list(train$VisitNumber), FUN = sum)
+colnames(tmp) <- c("VisitNumber", "sum_Personal_Care")
+
+train <- sqldf("SELECT a.*, b.sum_Personal_Care
+                FROM train a
+                LEFT JOIN tmp b USING(VisitNumber)")
+
+tmp <- aggregate(train$"GROCERY.DRY.GOODS", by = list(train$VisitNumber), FUN = sum)
+colnames(tmp) <- c("VisitNumber", "sum_grocery")
+
+train <- sqldf("SELECT a.*, b.sum_grocery
+               FROM train a
+               LEFT JOIN tmp b USING(VisitNumber)")
+
+## Nonlinear transformations
+train$log_records <- log(train$records)
+train$sq_scans    <- train$ScanCount * train$ScanCount
+
 
 # Same flags for Test -----------------------------------------------------
 test$sunday_flag    <- 0
@@ -147,6 +180,36 @@ test$upc_flag[test$Upc < 10000] <- 1
 test$interaction_weekend_records <- 0
 test$interaction_weekend_records <- test$flag_weekend * test$records
 
+test$flag_fineline <- 0
+test$flag_fineline[test$FinelineNumber %in% c(4138, 4306, 4451, 4628, 6404, 635, 6302, 6111, 6101)] <- 1
+
+test$top_upc_flag <- 0
+test$top_upc_flag[test$Upc %in% c(9218868437227407360, 60538862097, 7874235186, 7874235187, 68113107862, 60538871457)] <- 1
+
+## Batch indicators
+test <- with(test, data.frame(class.ind(DepartmentDescription), test[,]))
+
+## Model based
+test$flag40_model  <- predict(flag_model, newdata=test, type = "response")
+
+## Counts of top departments by ID
+tmp <- aggregate(test$"PERSONAL.CARE", by = list(test$VisitNumber), FUN = sum)
+colnames(tmp) <- c("VisitNumber", "sum_Personal_Care")
+
+test <- sqldf("SELECT a.*, b.sum_Personal_Care
+                FROM test a
+                LEFT JOIN tmp b USING(VisitNumber)")
+
+tmp <- aggregate(test$"GROCERY.DRY.GOODS", by = list(test$VisitNumber), FUN = sum)
+colnames(tmp) <- c("VisitNumber", "sum_grocery")
+
+test <- sqldf("SELECT a.*, b.sum_grocery
+               FROM test a
+               LEFT JOIN tmp b USING(VisitNumber)")
+
+## Nonlinear transformations
+test$log_records <- log(test$records)
+test$sq_scans    <- test$ScanCount * test$ScanCount
 
 # Remove unneeded columns -------------------------------------------------
 # train$sunday_flag    <- NULL
@@ -166,15 +229,21 @@ test$interaction_weekend_records <- test$flag_weekend * test$records
 # test$saturday_flag  <- NULL
 
 # Save pre-H2O data -------------------------------------------------------
-saveRDS(train, "train_enhanced.RDS")
-saveRDS(test, "test_enhanced.RDS")
-write.csv(train, "train_enhanced.csv",row.names = F)
-write.csv(test, "test_enhanced.csv", row.names =F)
+sd <- setdiff(colnames(train), colnames(test))
+sd <- sd[!(sd == "TripType")]
+train <- train[,!(colnames(train) %in% sd)]
+
+sd <- setdiff(colnames(test), colnames(train))
+
+saveRDS(train, "train_99vars.RDS")
+saveRDS(test, "test_98vars.RDS")
+write.csv(train, "train_99vars.csv",row.names = F)
+write.csv(test, "test_98vars.csv", row.names =F)
 
 
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf_glm_prebal.csv")
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf_glm_new_vars_dedup_200tree.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -232,5 +301,5 @@ pred[,.(
 
 summary(pred)
 
-saveRDS(sub, "drf_glm_prebal.RDS")
-write.csv(sub, "drf_glm_prebal.csv", row.names = F)
+saveRDS(sub, "drf_glm_new_vars_dedup_500tree_100depth.RDS")
+write.csv(sub, "drf_glm_new_vars_dedup_500tree_100depth.csv", row.names = F)
