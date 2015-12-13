@@ -243,7 +243,7 @@ write.csv(test, "test_98vars.csv", row.names =F)
 
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf_glm_new_vars_dedup_200tree.csv")
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf600.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -299,7 +299,7 @@ pred[,.(
   TripType_999 = mean(p999, na.rm = T)
 ),VisitNumber]
 
-summary(pred)
+summary(sub)
 
-saveRDS(sub, "drf_glm_new_vars_dedup_500tree_100depth.RDS")
-write.csv(sub, "drf_glm_new_vars_dedup_500tree_100depth.csv", row.names = F)
+saveRDS(sub, "drf600.RDS")
+write.csv(sub, "drf600.csv", row.names = F)
