@@ -7,26 +7,28 @@ train$flag_39    <- 0
 train$flag_39_40 <- 0
 
 train$flag_40[train$TripType == "40"]                             <- 1
-train$flag_40[train$TripType == "39"]                             <- 1
+train$flag_39[train$TripType == "39"]                             <- 1
 train$flag_39_40[train$TripType == "39" | train$TripType == "40"] <- 1
 
 prop.table(table(train$flag_39_40))
+prop.table(table(train$flag_39))
+prop.table(table(train$flag_40))
 prop.table(table(train$Weekday ))
 
 tmp <- na.omit(train)
-tmp <- sample_n(tmp, 500)
+tmp <- sample_n(tmp, 1000)
 
 prop.table(table(tmp$flag_39_40))
 
 glmulti.lm.out <-
-  glmulti("flag_39_40 ~ Weekday + DepartmentDescription + ScanCount + records + flag_weekend",
+  glmulti("flag_39 ~ ScanCount + records + flag_weekend + sum_grocery + upc_flag + GROCERY.DRY.GOODS + log_records + sq_scans + sum_Personal_Care + sunday_return + return_flag + top_upc_flag + flag_fineline",
           family = "binomial", data = tmp,
           level = 2,               # No interaction considered
-          method = "h",            # Exhaustive approach
+          method = "g",            #genetic # Exhaustive approach
           crit = "bic",            # AIC as criteria
           confsetsize = 2,         # Keep 5 best models
           plotty = F, report = F,  # No plot or interim reports
-          fitfunction = "lm")      # lm function
+          fitfunction = "glm")      # lm function
 
 ## Show best models (Use @ instead of $ for an S4 object)
 glmulti.lm.out@formulas
@@ -36,10 +38,9 @@ glmulti.lm.out@formulas
 
 set.seed(3456)
 train.samp <- sample_n(train, 10000)
-trainIndex <- createDataPartition(train.samp$flag_39_40, p = .7,
+trainIndex <- createDataPartition(train.samp$flag_39, p = .7,
                                   list = FALSE,
                                   times = 1)
-head(trainIndex,100)
 flagTrain <- train.samp[ trainIndex,]
 flagTest  <- train.samp[-trainIndex,]
 
@@ -82,6 +83,48 @@ saveRDS(flag_model, "flag40_model.RDS")
 
 train$flag40_model <- predict(flag_model, newdata=train, type = "response")
 test$flag40_model  <- predict(flag_model, newdata=test, type = "response")
+
+
+# Flag 39 -----------------------------------------------------------------
+set.seed(3456)
+train.samp <- sample_n(train, 10000)
+trainIndex <- createDataPartition(train.samp$flag_39, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+flagTrain <- train.samp[ trainIndex,]
+flagTest  <- train.samp[-trainIndex,]
+
+flagTrain$sunday_flag    <- NULL
+flagTrain$monday_flag    <- NULL
+flagTrain$tuesday_flag   <- NULL
+flagTrain$wednesday_flag <- NULL
+flagTrain$thursday_flag  <- NULL
+flagTrain$friday_flag    <- NULL
+flagTrain$saturday_flag  <- NULL
+
+flagTest$sunday_flag    <- NULL
+flagTest$monday_flag    <- NULL
+flagTest$tuesday_flag   <- NULL
+flagTest$wednesday_flag <- NULL
+flagTest$thursday_flag  <- NULL
+flagTest$friday_flag    <- NULL
+flagTest$saturday_flag  <- NULL
+
+flagTrain$FinelineNumber <- as.factor(flagTrain$FinelineNumber)
+flagTest$FinelineNumber  <- as.factor(flagTest$FinelineNumber)
+
+flag39_model <-
+  glm("flag_39 ~ 1 + log_records + sunday_return + records:ScanCount +
+      top_upc_flag +
+      sq_scans", family = "binomial",
+      data = flagTrain)
+
+summary(flag39_model)
+
+saveRDS(flag39_model, "flag39_model.RDS")
+
+flag39_pred <- predict(flag39_model, newdata = train, type = "response")
+
 
 # Latent ------------------------------------------------------------------
 fit <- princomp(flagTrain[,colnames(flagTrain) %in% c("upc_flag", "return_flag", "flag_weekend", "records", "flag_fineline", "ScanCount")], cor=TRUE)

@@ -119,6 +119,9 @@ train <- with(train, data.frame(class.ind(DepartmentDescription), train[,]))
 flag_model         <- readRDS("flag40_model.RDS")
 train$flag40_model <- predict(flag_model, newdata=train, type = "response")
 
+flag_model         <- readRDS("flag39_model.RDS")
+train$flag39_model <- predict(flag_model, newdata=train, type = "response")
+
 ## Counts of top departments
 tmp <- aggregate(train$"PERSONAL.CARE", by = list(train$VisitNumber), FUN = sum)
 colnames(tmp) <- c("VisitNumber", "sum_Personal_Care")
@@ -243,7 +246,7 @@ write.csv(test, "test_98vars.csv", row.names =F)
 
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("C:\\Users\\jmiller\\Downloads\\drf600.csv")
+test.pred <- fread("C:\\Users\\jmiller\\Downloads\\newglm_drf.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -301,5 +304,84 @@ pred[,.(
 
 summary(sub)
 
-saveRDS(sub, "drf600.RDS")
-write.csv(sub, "drf600.csv", row.names = F)
+saveRDS(sub, "newglm_drf.RDS")
+write.csv(sub, "newglm_drf.csv", row.names = F)
+
+
+
+# Ensemble Weighting ------------------------------------------------------
+nnet   <- sub
+drf600 <- readRDS("drf600.RDS")
+drfglm <- readRDS("drf_glm_new_vars_dedup_500tree_100depth.RDS")
+
+drfglm <- as.data.frame(drfglm)
+nnet   <- as.data.frame(nnet)
+drf600 <- as.data.frame(drf600)
+
+drfglm$VisitNumber <- NULL
+nnet$VisitNumber   <- NULL
+drf600$VisitNumber <- NULL
+
+VisitNumber <- sub$VisitNumber
+
+sub2 <- (drf600*.90) + (nnet *.1)
+sub2 <- cbind(VisitNumber, sub2)
+
+saveRDS(sub2, "post_model_blend_drf_nnet.RDS")
+write.csv(sub, "post_model_blend_drf_nnet.csv", row.names = F)
+
+
+sub2 <- (drf600*.90) + (as.data.table(drfglm) *.1)
+sub2 <- cbind(VisitNumber, sub2)
+
+saveRDS(sub2, "post_model_blend_drf_drfglm.RDS")
+write.csv(sub, "post_model_blend_drf_drfglm.csv", row.names = F)
+
+
+# Deterministic Post-prediction Changes (exprimental) ---------------------
+
+pred$flag40_model <- test$flag40_model
+
+sub2 <-
+  pred[,.(
+    fflag40     = mean(flag40_model, na.rm =T),
+    TripType_3  = mean(p3,na.rm=T),
+    TripType_4  = mean(p4,na.rm=T),
+    TripType_5  = mean(p5,na.rm=T),
+    TripType_6  = mean(p6,na.rm=T),
+    TripType_7  = mean(p7,na.rm=T),
+    TripType_8  = mean(p8, na.rm = T),
+    TripType_9  = mean(p9, na.rm = T),
+    TripType_12 = mean(p12, na.rm = T),
+    TripType_14 = mean(p14, na.rm = T),
+    TripType_15 = mean(p15, na.rm = T),
+    TripType_18 = mean(p18, na.rm = T),
+    TripType_19 = mean(p19, na.rm = T),
+    TripType_20 = mean(p20, na.rm = T),
+    TripType_21 = mean(p21, na.rm = T),
+    TripType_22 = mean(p22, na.rm = T),
+    TripType_23 = mean(p23, na.rm = T),
+    TripType_24 = mean(p24, na.rm = T),
+    TripType_25 = mean(p25, na.rm = T),
+    TripType_26 = mean(p26, na.rm = T),
+    TripType_27 = mean(p27, na.rm = T),
+    TripType_28 = mean(p28, na.rm = T),
+    TripType_29 = mean(p29, na.rm = T),
+    TripType_30 = mean(p30, na.rm = T),
+    TripType_31 = mean(p31, na.rm = T),
+    TripType_32 = mean(p32, na.rm = T),
+    TripType_33 = mean(p33, na.rm = T),
+    TripType_34 = mean(p34, na.rm = T),
+    TripType_35 = mean(p35, na.rm = T),
+    TripType_36 = mean(p36, na.rm = T),
+    TripType_37 = mean(p37, na.rm = T),
+    TripType_38 = mean(p38, na.rm = T),
+    TripType_39 = mean(p39, na.rm = T),
+    TripType_40 = mean(p40, na.rm = T),
+    TripType_41 = mean(p41, na.rm = T),
+    TripType_42 = mean(p42, na.rm = T),
+    TripType_43 = mean(p43, na.rm = T),
+    TripType_44 = mean(p44, na.rm = T),
+    TripType_999 = mean(p999, na.rm = T)
+  ),VisitNumber]
+
