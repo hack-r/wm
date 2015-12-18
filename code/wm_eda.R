@@ -127,9 +127,34 @@ flag39_pred <- predict(flag39_model, newdata = train, type = "response")
 
 
 # Latent ------------------------------------------------------------------
+#fit <- princomp(flagTrain[,colnames(flagTrain) %in% c("upc_flag", "return_flag", "flag_weekend", "records", "flag_fineline", "ScanCount")], cor=TRUE)
 fit <- princomp(flagTrain[,colnames(flagTrain) %in% c("upc_flag", "return_flag", "flag_weekend", "records", "flag_fineline", "ScanCount")], cor=TRUE)
 summary(fit) # print variance accounted for
 loadings(fit) # pc loadings
 plot(fit,type="lines") # scree plot
 fit$scores # the principal components
 biplot(fit)
+
+pacman::p_load(psych)
+CN <- colnames(train)
+for( i in CN){
+  if (class(train[,i]) == "integer"){
+    train[,i] <- as.numeric(train[,i])
+  }
+}
+
+train$flag40_model <- na.roughfix(train$flag40_model)
+
+nums <- sapply(train, is.numeric)
+x    <- train[,nums]
+x    <- na.omit(x)
+fit <- principal(x[,!(colnames(x) %in% c("VisitNumber", "TripType"))], nfactors = 4, rotate = "varimax")
+fit
+
+test.pca <- predict(fit, newdata = test)
+
+library(FactoMineR)
+result <- PCA(train[,10000:15000]) # graphs generated automatically
+
+# Misc --------------------------------------------------------------------
+summary(train)
