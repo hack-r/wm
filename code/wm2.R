@@ -1,63 +1,90 @@
+
+# Options/Libraries -------------------------------------------------------
+setwd("T://RNA//Baltimore//Jason//ad_hoc//wm//data")
+pacman::p_load(bit64, caret, data.table, dplyr, FactoMineR, glmulti, h2o, Matrix,
+               Metrics, mlbench, nnet, pls, rattle, sqldf, varSelRF, xgboost)
+
 test  <- fread("test.csv")
 samp  <- fread("sample_submission.csv")
 train <- fread("train.csv")
 
-require(xgboost)
-require(Matrix)
+# Preprocess Training Data ------------------------------------------------
 train$FinelineNumber        <- as.factor(train$FinelineNumber)
 train$TripType              <- as.factor(train$TripType)
-train$Upc                   <- as.factor(train$Upc)
 train$Weekday               <- as.factor(train$Weekday)
 train$DepartmentDescription <- as.factor(train$DepartmentDescription)
 
-# one-hot encoding
+# Rm ID
 id                <- train$VisitNumber
 train$VisitNumber <- NULL
 
+# Create flags to replace un-scalable columns, then drop original cols
+train$flag_upc <- 0
+train$flag_upc[train$Upc < 10000] <- 1
+
+train$Upc <- NULL
+
+train$flag_fineline <- 0
+train$flag_fineline[train$FinelineNumber %in% c(4138, 4306, 4451, 4628, 6404, 635, 6302, 6111, 6101)] <- 1
+
+train$FinelineNumber <- NULL
+
+train$flag_ScanCount_neg <- 0
+train$flag_ScanCount_neg[train$ScanCount < 0] <- 1
+
+train$flag_ScanCount_multiple <- 0
+train$flag_ScanCount_multiple[train$ScanCount > 1] <- 1
+
+train$flag_ScanCount_over_10 <- 0
+train$flag_ScanCount_over_10[train$flag_ScanCount_over_10 > 10] <- 1
+
+train$ScanCount <- NULL
+
+# Create Sparse Matrix
 sparse_matrix     <- sparse.model.matrix(TripType~.-1, data = train)
 
-output_vector      = train[,TripType] == "3"
-output_vector      = train[,TripType] == "4"
-output_vector      = train[,TripType] == "5"
-output_vector      = train[,TripType] == "6"
-output_vector      = train[,TripType] == "7"
-output_vector      = train[,TripType] == "8"
-output_vector      = train[,TripType] == "9"
-output_vector      = train[,TripType] == "10"
-output_vector      = train[,TripType] == "11"
-output_vector      = train[,TripType] == "12"
-output_vector      = train[,TripType] == "13"
-output_vector      = train[,TripType] == "14"
-output_vector      = train[,TripType] == "15"
-output_vector      = train[,TripType] == "18"
-output_vector      = train[,TripType] == "19"
-output_vector      = train[,TripType] == "20"
-output_vector      = train[,TripType] == "21"
-output_vector      = train[,TripType] == "22"
-output_vector      = train[,TripType] == "23"
-output_vector      = train[,TripType] == "24"
-output_vector      = train[,TripType] == "25"
-output_vector      = train[,TripType] == "26"
-output_vector      = train[,TripType] == "27"
-output_vector      = train[,TripType] == "28"
-output_vector      = train[,TripType] == "29"
-output_vector      = train[,TripType] == "30"
-output_vector      = train[,TripType] == "31"
-output_vector      = train[,TripType] == "32"
-output_vector      = train[,TripType] == "33"
-output_vector      = train[,TripType] == "34"
-output_vector      = train[,TripType] == "35"
-output_vector      = train[,TripType] == "36"
-output_vector      = train[,TripType] == "37"
-output_vector      = train[,TripType] == "38"
-output_vector      = train[,TripType] == "39"
-output_vector      = train[,TripType] == "40"
-output_vector      = train[,TripType] == "41"
-output_vector      = train[,TripType] == "42"
-output_vector      = train[,TripType] == "43"
-output_vector      = train[,TripType] == "44"
-output_vector      = train[,TripType] == "999"
+# Create outcome variables
+Y <- train$TripType
+Y2 <- as.numeric(Y)
+Y3 <- Y2 - 1 # Has to be zero-indexed
 
-datals <- as.list(sparse_matrix, output_vector)
+# Preprocess Test Data ----------------------------------------------------
+test$FinelineNumber        <- as.factor(test$FinelineNumber)
+test$Weekday               <- as.factor(test$Weekday)
+test$DepartmentDescription <- as.factor(test$DepartmentDescription)
 
-bst      <- xgboost(data = sparse_matrix, label = output_vector, max.depth = 4, num_parallel_tree = 100, subsample = 0.5, colsample_bytree =0.5, nround = 1, objective = "binary:logistic")
+# Rm ID
+test.id          <- test$VisitNumber
+test$VisitNumber <- NULL
+
+# Create flags to replace un-scalable columns, then drop original cols
+test$flag_upc <- 0
+test$flag_upc[test$Upc < 10000] <- 1
+
+test$Upc <- NULL
+
+test$flag_fineline <- 0
+test$flag_fineline[test$FinelineNumber %in% c(4138, 4306, 4451, 4628, 6404, 635, 6302, 6111, 6101)] <- 1
+
+test$FinelineNumber <- NULL
+
+test$flag_ScanCount_neg <- 0
+test$flag_ScanCount_neg[test$ScanCount < 0]                   <- 1
+
+test$flag_ScanCount_multiple <- 0
+test$flag_ScanCount_multiple[test$ScanCount > 1]              <- 1
+
+test$flag_ScanCount_over_10 <- 0
+test$flag_ScanCount_over_10[test$flag_ScanCount_over_10 > 10] <- 1
+
+test$ScanCount <- NULL
+
+# Create Sparse Matrix
+test_sparse_matrix     <- sparse.model.matrix(~.-1, data = test)
+
+# Model -------------------------------------------------------------------
+bst      <- xgboost(data = sparse_matrix, label = Y3,
+                    max.depth = 4, # subsample = 0.5,num_parallel_tree = 10,
+                    nround = 1, objective = "multi:softprob", num_classes = 38)#, eval_metric = "mlogloss" #colsample_bytree =0.5,
+
+pred <- predict(bst, test$data)
