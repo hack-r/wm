@@ -23,9 +23,9 @@ setwd("T://RNA//Baltimore//Jason//ad_hoc//wm//data")
 
 #install.packages("pacman")
 require(pacman)
-pacman::p_load(bit64, caret, data.table, dplyr, FactoMineR, glmulti, h2o,
+pacman::p_load(bit64, caret, data.table, dplyr, FactoMineR, glmulti, h2o, Matrix,
                Metrics, mlbench, nnet, pls, rattle, sqldf, varSelRF)
-h2o.init(nthreads=-1)
+#h2o.init(nthreads=-1)
 
 
 # Raw data import ---------------------------------------------------------
@@ -114,7 +114,7 @@ train$flag_fineline[train$FinelineNumber %in% c(4138, 4306, 4451, 4628, 6404, 63
 
 ## Batch factor to indicators
 train <- with(train, data.frame(class.ind(DepartmentDescription), train[,]))
-
+train <- with(train, data.frame(class.ind(FinelineNumber), train[,]))
 
 ## Counts of top departments
 tmp <- aggregate(train$"PERSONAL.CARE", by = list(train$VisitNumber), FUN = sum)
@@ -191,7 +191,8 @@ test$top_upc_flag <- 0
 test$top_upc_flag[test$Upc %in% c(9218868437227407360, 60538862097, 7874235186, 7874235187, 68113107862, 60538871457)] <- 1
 
 ## Batch indicators
-test <- with(test, data.frame(class.ind(DepartmentDescription), test[,]))
+test  <- with(test, data.frame(class.ind(DepartmentDescription), test[,]))
+test <- with(test, data.frame(class.ind(FinelineNumber), test[,]))
 
 ## Counts of top departments by ID
 tmp <- aggregate(test$"PERSONAL.CARE", by = list(test$VisitNumber), FUN = sum)
@@ -259,24 +260,23 @@ train <- train[,!(colnames(train) %in% sd)]
 
 sd <- setdiff(colnames(test), colnames(train))
 
-saveRDS(train, "train_100vars.RDS")
-saveRDS(test, "test_99vars.RDS")
-write.csv(train, "train_100vars.csv",row.names = F)
-write.csv(test, "test_99vars.csv", row.names =F)
+# saveRDS(train, "train_100vars.RDS")
+# saveRDS(test, "test_99vars.RDS")
+# write.csv(train, "train_100vars.csv",row.names = F)
+# write.csv(test, "test_99vars.csv", row.names =F)
+
+saveRDS(train, "train_5303vars.RDS")
+saveRDS(test, "test_5302vars.RDS")
+write.csv(train, "train_5303vars.csv",row.names = F)
+write.csv(test, "test_5302vars.csv", row.names =F)
+
 
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("T:\\RNA\\Baltimore\\Jason\\tmp\\pca_drf_600trees.csv")
+test.pred <- fread("T:\\RNA\\Baltimore\\Jason\\tmp\\bayes.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
-
-# test.pred$predict <- NULL
-# test.pred$Weekday <- NULL
-# test.pred$Upc     <- NULL
-# test.pred$DepartmentDescription <- NULL
-# test.pred$FinelineNumber        <- NULL
-# test.pred$ScanCount             <- NULL
 
 pred <- as.data.table(test.pred)
 
@@ -324,8 +324,8 @@ pred[,.(
 
 summary(sub)
 
-saveRDS(sub, "pca_drf_600trees.RDS")
-write.csv(sub, "pca_drf_600trees.csv", row.names = F)
+saveRDS(sub, "pca_drf_1k.RDS")
+write.csv(sub, "pca_drf_1k.csv", row.names = F)
 
 # Ensemble Weighting ------------------------------------------------------
 pcadrf   <- sub
