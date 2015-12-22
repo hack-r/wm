@@ -83,8 +83,18 @@ test$ScanCount <- NULL
 test_sparse_matrix     <- sparse.model.matrix(~.-1, data = test)
 
 # Model -------------------------------------------------------------------
-bst      <- xgboost(data = sparse_matrix, label = Y3,
-                    max.depth = 4, # subsample = 0.5,num_parallel_tree = 10,
-                    nround = 1, objective = "multi:softprob", num_classes = 38)#, eval_metric = "mlogloss" #colsample_bytree =0.5,
+bst          <- xgboost(data = sparse_matrix, label = Y3, max.depth = 6, eta = .3, nround =10,
+                        nthread = 20, objective = "multi:softprob", num_class=38, eval_metric = "mlogloss")
 
-pred <- predict(bst, test$data)
+bst.discreet <- xgboost(data = sparse_matrix, label = Y3, max.depth = 6, eta = .3, nround =10,
+                  nthread = 2, objective = "multi:softmax", num_class=38)
+
+# Predict -----------------------------------------------------------------
+pred       <- predict(bst, test_sparse_matrix) #, type = "response", outputmargin=TRUE
+
+predMatrix <- data.frame(matrix(pred, ncol=38, byrow=TRUE))
+colnames(predMatrix) = unique(train$TripType)
+
+res <- data.frame(id, predMatrix)
+write.csv(res, 'submission.csv', quote = F, row.names = F)
+
