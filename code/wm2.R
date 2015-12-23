@@ -83,18 +83,71 @@ test$ScanCount <- NULL
 test_sparse_matrix     <- sparse.model.matrix(~.-1, data = test)
 
 # Model -------------------------------------------------------------------
-bst          <- xgboost(data = sparse_matrix, label = Y3, max.depth = 6, eta = .3, nround =10,
+bst          <- xgboost(data = sparse_matrix,label = Y3, n_parallel_trees = 100, max.depth = 10, eta = .3, nround = 1000, #,
                         nthread = 20, objective = "multi:softprob", num_class=38, eval_metric = "mlogloss")
 
 bst.discreet <- xgboost(data = sparse_matrix, label = Y3, max.depth = 6, eta = .3, nround =10,
                   nthread = 2, objective = "multi:softmax", num_class=38)
 
 # Predict -----------------------------------------------------------------
-pred       <- predict(bst, test_sparse_matrix) #, type = "response", outputmargin=TRUE
+pred       <- predict(bst, test_sparse_matrix)
+saveRDS(pred, "pred.RDS")
 
 predMatrix <- data.frame(matrix(pred, ncol=38, byrow=TRUE))
-colnames(predMatrix) = unique(train$TripType)
 
-res <- data.frame(id, predMatrix)
-write.csv(res, 'submission.csv', quote = F, row.names = F)
+res <- data.frame(test.id, predMatrix)
+colnames(res) <- colnames(samp)
 
+pred <- as.data.table(pred)
+
+sub <-
+  pred[,.(
+    TripType_3  = mean(TripType_3,na.rm=T),
+    TripType_4  = mean(TripType_4,na.rm=T),
+    TripType_5  = mean(TripType_5,na.rm=T),
+    TripType_6  = mean(TripType_6,na.rm=T),
+    TripType_7  = mean(TripType_7,na.rm=T),
+    TripType_8  = mean(TripType_8, na.rm = T),
+    TripType_9  = mean(TripType_9, na.rm = T),
+    TripType_12 = mean(TripType_12, na.rm = T),
+    TripType_14 = mean(TripType_14, na.rm = T),
+    TripType_15 = mean(TripType_15, na.rm = T),
+    TripType_18 = mean(TripType_18, na.rm = T),
+    TripType_19 = mean(TripType_19, na.rm = T),
+    TripType_20 = mean(TripType_20, na.rm = T),
+    TripType_21 = mean(TripType_21, na.rm = T),
+    TripType_22 = mean(TripType_22, na.rm = T),
+    TripType_23 = mean(TripType_23, na.rm = T),
+    TripType_24 = mean(TripType_24, na.rm = T),
+    TripType_25 = mean(TripType_25, na.rm = T),
+    TripType_26 = mean(TripType_26, na.rm = T),
+    TripType_27 = mean(TripType_27, na.rm = T),
+    TripType_28 = mean(TripType_28, na.rm = T),
+    TripType_29 = mean(TripType_29, na.rm = T),
+    TripType_30 = mean(TripType_30, na.rm = T),
+    TripType_31 = mean(TripType_31, na.rm = T),
+    TripType_32 = mean(TripType_32, na.rm = T),
+    TripType_33 = mean(TripType_33, na.rm = T),
+    TripType_34 = mean(TripType_34, na.rm = T),
+    TripType_35 = mean(TripType_35, na.rm = T),
+    TripType_36 = mean(TripType_36, na.rm = T),
+    TripType_37 = mean(TripType_37, na.rm = T),
+    TripType_38 = mean(TripType_38, na.rm = T),
+    TripType_39 = mean(TripType_39, na.rm = T),
+    TripType_40 = mean(TripType_40, na.rm = T),
+    TripType_41 = mean(TripType_41, na.rm = T),
+    TripType_42 = mean(TripType_42, na.rm = T),
+    TripType_43 = mean(TripType_43, na.rm = T),
+    TripType_44 = mean(TripType_44, na.rm = T),
+    TripType_999 = mean(TripType_999, na.rm = T)
+  ),VisitNumber]
+
+summary(sub)
+
+
+write.csv(res, 'xgboost_pred.csv', quote = F, row.names = F)
+zip("xgboost_pred.zip", "xgboost_pred.csv")
+
+# Alternate Prediction for 2-step Modeling --------------------------------
+step1.train <- predict(bst, sparse_matrix)
+step1.test  <- predict(bst, test_sparse_matrix)
