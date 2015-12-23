@@ -101,7 +101,7 @@ colnames(res) <- colnames(samp)
 pred <- as.data.table(pred)
 
 sub <-
-  pred[,.(
+  res[,.(
     TripType_3  = mean(TripType_3,na.rm=T),
     TripType_4  = mean(TripType_4,na.rm=T),
     TripType_5  = mean(TripType_5,na.rm=T),
