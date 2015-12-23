@@ -83,11 +83,12 @@ test$ScanCount <- NULL
 test_sparse_matrix     <- sparse.model.matrix(~.-1, data = test)
 
 # Model -------------------------------------------------------------------
-bst          <- xgboost(data = sparse_matrix,label = Y3, n_parallel_trees = 100, max.depth = 10, eta = .3, nround = 1000, #,
-                        nthread = 20, objective = "multi:softprob", num_class=38, eval_metric = "mlogloss")
+bst          <- xgboost(data = sparse_matrix,label = Y3, max.depth = 6, eta = .3, nround = 100,n_parallel_trees = 1000, #ntree = 100, #,
+                        nthread = 50, objective = "multi:softprob", num_class=38, eval_metric = "mlogloss",
+                        subsample = .6, colsample_bytree = .6, nfolds = 3, gamma = .9, max_delta_step = 10)
 
-bst.discreet <- xgboost(data = sparse_matrix, label = Y3, max.depth = 6, eta = .3, nround =10,
-                  nthread = 2, objective = "multi:softmax", num_class=38)
+# bst.discreet <- xgboost(data = sparse_matrix, label = Y3, max.depth = 6, eta = .3, nround =10,
+#                   nthread = 2, objective = "multi:softmax", num_class=38)
 
 # Predict -----------------------------------------------------------------
 pred       <- predict(bst, test_sparse_matrix)
@@ -98,10 +99,10 @@ predMatrix <- data.frame(matrix(pred, ncol=38, byrow=TRUE))
 res <- data.frame(test.id, predMatrix)
 colnames(res) <- colnames(samp)
 
-pred <- as.data.table(pred)
+pred <- as.data.table(res)
 
 sub <-
-  res[,.(
+  pred[,.(
     TripType_3  = mean(TripType_3,na.rm=T),
     TripType_4  = mean(TripType_4,na.rm=T),
     TripType_5  = mean(TripType_5,na.rm=T),
@@ -144,8 +145,9 @@ sub <-
 
 summary(sub)
 
+# 3.3 score from eta = 1000, depth = 10, by row, num_parallel_trees = 100
 
-write.csv(res, 'xgboost_pred.csv', quote = F, row.names = F)
+write.csv(sub, 'xgboost_pred.csv', quote = F, row.names = F)
 zip("xgboost_pred.zip", "xgboost_pred.csv")
 
 # Alternate Prediction for 2-step Modeling --------------------------------
