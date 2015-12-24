@@ -251,8 +251,6 @@ highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75, names = T)
 # print indexes of highly correlated attributes
 print(highlyCorrelated)
 
-
-
 # Save pre-H2O data -------------------------------------------------------
 sd <- setdiff(colnames(train), colnames(test))
 sd <- sd[!(sd == "TripType")]
@@ -273,10 +271,11 @@ write.csv(test, "test_5302vars.csv", row.names =F)
 
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("T:\\RNA\\Baltimore\\Jason\\tmp\\620d6c17748f.csv")
+test.pred <- fread("T:\\RNA\\Baltimore\\Jason\\tmp\\drf_9var.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
+head(test.pred$VisitNumber)
 
 pred <- as.data.table(test.pred)
 
@@ -324,9 +323,16 @@ pred[,.(
 
 summary(sub)
 
-saveRDS(sub, "620d6c17748f.RDS")
-write.csv(sub, "620d6c17748f.csv", row.names = F)
-zip("620d6c17748f.csv", "620d6c17748f.zip")
+saveRDS(sub, "drf_visit_kitchen_sink_250.RDS")
+write.csv(sub, "drf_visit_kitchen_sink_250.csv", row.names = F)
+zip("drf_visit_kitchen_sink_250.zip", "drf_visit_kitchen_sink_250.csv")
+rm(sub)
+
+# Manual Adjustment -------------------------------------------------------
+for(i in 1:ncol(sub)){
+  while(mean(sub[,i] >))
+}
+
 # Ensemble Weighting ------------------------------------------------------
 pcadrf   <- sub
 drf600 <- readRDS("drf600.RDS")

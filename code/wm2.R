@@ -8,6 +8,20 @@ test  <- fread("test.csv")
 samp  <- fread("sample_submission.csv")
 train <- fread("train.csv")
 
+# Add record count --------------------------------------------------------
+train2 <- sqldf("select VisitNumber, count(VisitNumber) as records from train group by VisitNumber")
+train3 <- sqldf("select a.*, b.records from train a left join train2 b on a.VisitNumber = b.VisitNumber")
+
+test2 <- sqldf("select VisitNumber, count(VisitNumber) as records from test group by VisitNumber")
+test3 <- sqldf("select a.*, b.records from test a left join test2 b on a.VisitNumber = b.VisitNumber")
+
+rm(train, train2)
+train <- train3
+rm(train3)
+
+test <- test3
+rm(test2, test3)
+
 # Preprocess Training Data ------------------------------------------------
 train$FinelineNumber        <- as.factor(train$FinelineNumber)
 train$TripType              <- as.factor(train$TripType)
@@ -16,7 +30,7 @@ train$DepartmentDescription <- as.factor(train$DepartmentDescription)
 
 # Rm ID
 id                <- train$VisitNumber
-train$VisitNumber <- NULL
+#train$VisitNumber <- NULL
 
 # Create flags to replace un-scalable columns, then drop original cols
 train$flag_upc <- 0
@@ -40,6 +54,8 @@ train$flag_ScanCount_over_10[train$flag_ScanCount_over_10 > 10] <- 1
 
 train$ScanCount <- NULL
 
+saveRDS(train, "train_dec24.RDS")
+write.csv(train, "train_dec24.csv")
 # Create Sparse Matrix
 sparse_matrix     <- sparse.model.matrix(TripType~.-1, data = train)
 
@@ -55,7 +71,7 @@ test$DepartmentDescription <- as.factor(test$DepartmentDescription)
 
 # Rm ID
 test.id          <- test$VisitNumber
-test$VisitNumber <- NULL
+#test$VisitNumber <- NULL
 
 # Create flags to replace un-scalable columns, then drop original cols
 test$flag_upc <- 0
@@ -78,6 +94,9 @@ test$flag_ScanCount_over_10 <- 0
 test$flag_ScanCount_over_10[test$flag_ScanCount_over_10 > 10] <- 1
 
 test$ScanCount <- NULL
+
+saveRDS(test, "test_dec24.RDS")
+write.csv(test, "test_dec24.csv")
 
 # Create Sparse Matrix
 test_sparse_matrix     <- sparse.model.matrix(~.-1, data = test)
