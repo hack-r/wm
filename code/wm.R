@@ -121,8 +121,8 @@ tmp <- aggregate(train$"PERSONAL.CARE", by = list(train$VisitNumber), FUN = sum)
 colnames(tmp) <- c("VisitNumber", "sum_Personal_Care")
 
 train <- sqldf("SELECT a.*, b.sum_Personal_Care
-                FROM train a
-                LEFT JOIN tmp b USING(VisitNumber)")
+               FROM train a
+               LEFT JOIN tmp b USING(VisitNumber)")
 
 tmp <- aggregate(train$"GROCERY.DRY.GOODS", by = list(train$VisitNumber), FUN = sum)
 colnames(tmp) <- c("VisitNumber", "sum_grocery")
@@ -199,15 +199,15 @@ tmp <- aggregate(test$"PERSONAL.CARE", by = list(test$VisitNumber), FUN = sum)
 colnames(tmp) <- c("VisitNumber", "sum_Personal_Care")
 
 test <- sqldf("SELECT a.*, b.sum_Personal_Care
-                FROM test a
-                LEFT JOIN tmp b USING(VisitNumber)")
+              FROM test a
+              LEFT JOIN tmp b USING(VisitNumber)")
 
 tmp <- aggregate(test$"GROCERY.DRY.GOODS", by = list(test$VisitNumber), FUN = sum)
 colnames(tmp) <- c("VisitNumber", "sum_grocery")
 
 test <- sqldf("SELECT a.*, b.sum_grocery
-               FROM test a
-               LEFT JOIN tmp b USING(VisitNumber)")
+              FROM test a
+              LEFT JOIN tmp b USING(VisitNumber)")
 
 ## Nonlinear transformations
 test$log_records <- log(test$records)
@@ -220,58 +220,79 @@ test$flag40_model <- predict(flag_model, newdata=test, type = "response")
 flag_model         <- readRDS("flag39_model.RDS")
 test$flag39_model <- predict(flag_model, newdata=test, type = "response")
 
+# Last second additions
+train$flag_ScanCount_neg <- 0
+train$flag_ScanCount_neg[train$ScanCount < 0] <- 1
+
+train$flag_ScanCount_multiple <- 0
+train$flag_ScanCount_multiple[train$ScanCount > 1] <- 1
+
+train$flag_ScanCount_over_10 <- 0
+train$flag_ScanCount_over_10[train$ScanCount > 10] <- 1
+
+
+test$flag_ScanCount_neg <- 0
+test$flag_ScanCount_neg[test$ScanCount < 0]                   <- 1
+
+test$flag_ScanCount_multiple <- 0
+test$flag_ScanCount_multiple[test$ScanCount > 1]              <- 1
+
+test$flag_ScanCount_over_10 <- 0
+test$flag_ScanCount_over_10[test$ScanCount > 10] <- 1
+
 
 # Remove Redundant Features -----------------------------------------------
 train$flag_40 <- NULL
 train$flag_39 <- NULL
 train$flag_39_40 <- NULL
 
-CN <- colnames(train)
-for( i in CN){
-  if (class(train[,i]) == "integer"){
-    train[,i] <- as.numeric(train[,i])
-  }
-}
-
-train$flag40_model <- na.roughfix(train$flag40_model)
-
-nums <- sapply(train, is.numeric)
-x    <- train[,nums]
-x    <- na.omit(x)
-
-set.seed(7)
-library(mlbench)
-library(caret)
-# calculate correlation matrix
-correlationMatrix <- cor(x[,!(colnames(x) %in% c("VisitNumber", "TripType"))])
-# summarize the correlation matrix
-print(correlationMatrix)
-# find attributes that are highly corrected (ideally >0.75)
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75, names = T)
-# print indexes of highly correlated attributes
-print(highlyCorrelated)
-
+# CN <- colnames(train)
+# for( i in CN){
+#   if (class(train[,i]) == "integer"){
+#     train[,i] <- as.numeric(train[,i])
+#   }
+# }
+#
+# train$flag40_model <- na.roughfix(train$flag40_model)
+#
+# nums <- sapply(train, is.numeric)
+# x    <- train[,nums]
+# x    <- na.omit(x)
+#
+# set.seed(7)
+# library(mlbench)
+# library(caret)
+# # calculate correlation matrix
+# correlationMatrix <- cor(x[,!(colnames(x) %in% c("VisitNumber", "TripType"))])
+# # summarize the correlation matrix
+# print(correlationMatrix)
+# # find attributes that are highly corrected (ideally >0.75)
+# highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75, names = T)
+# # print indexes of highly correlated attributes
+# print(highlyCorrelated)
+#
 # Save pre-H2O data -------------------------------------------------------
 sd <- setdiff(colnames(train), colnames(test))
 sd <- sd[!(sd == "TripType")]
 train <- train[,!(colnames(train) %in% sd)]
 
 sd <- setdiff(colnames(test), colnames(train))
+test <- test[,!(colnames(test) %in% sd)]
 
-# saveRDS(train, "train_100vars.RDS")
-# saveRDS(test, "test_99vars.RDS")
-# write.csv(train, "train_100vars.csv",row.names = F)
-# write.csv(test, "test_99vars.csv", row.names =F)
+# saveRDS(train, "train_103vars.RDS")
+# saveRDS(test, "test_102vars.RDS")
+# write.csv(train, "train_103vars.csv",row.names = F)
+# write.csv(test, "test_102vars.csv", row.names =F)
 
-saveRDS(train, "train_5303vars.RDS")
-saveRDS(test, "test_5302vars.RDS")
-write.csv(train, "train_5303vars.csv",row.names = F)
-write.csv(test, "test_5302vars.csv", row.names =F)
+saveRDS(train, "train_5147vars.RDS")
+saveRDS(test, "test_5147vars.RDS")
+write.csv(train, "train_5147vars.csv",row.names = F)
+write.csv(test, "test_5147vars.csv", row.names =F)
 
 
 ##############
 # Read in data from H2O web browser flow
-test.pred <- fread("T:\\RNA\\Baltimore\\Jason\\tmp\\drf_9var.csv")
+test.pred <- fread("T:\\RNA\\Baltimore\\Jason\\tmp\\2step_dec27.csv")
 test.pred <- as.data.frame(test.pred)
 
 test.pred$VisitNumber <- test$VisitNumber
@@ -280,58 +301,54 @@ head(test.pred$VisitNumber)
 pred <- as.data.table(test.pred)
 
 sub <-
-pred[,.(
-  TripType_3  = mean(p3,na.rm=T),
-  TripType_4  = mean(p4,na.rm=T),
-  TripType_5  = mean(p5,na.rm=T),
-  TripType_6  = mean(p6,na.rm=T),
-  TripType_7  = mean(p7,na.rm=T),
-  TripType_8  = mean(p8, na.rm = T),
-  TripType_9  = mean(p9, na.rm = T),
-  TripType_12 = mean(p12, na.rm = T),
-  TripType_14 = mean(p14, na.rm = T),
-  TripType_15 = mean(p15, na.rm = T),
-  TripType_18 = mean(p18, na.rm = T),
-  TripType_19 = mean(p19, na.rm = T),
-  TripType_20 = mean(p20, na.rm = T),
-  TripType_21 = mean(p21, na.rm = T),
-  TripType_22 = mean(p22, na.rm = T),
-  TripType_23 = mean(p23, na.rm = T),
-  TripType_24 = mean(p24, na.rm = T),
-  TripType_25 = mean(p25, na.rm = T),
-  TripType_26 = mean(p26, na.rm = T),
-  TripType_27 = mean(p27, na.rm = T),
-  TripType_28 = mean(p28, na.rm = T),
-  TripType_29 = mean(p29, na.rm = T),
-  TripType_30 = mean(p30, na.rm = T),
-  TripType_31 = mean(p31, na.rm = T),
-  TripType_32 = mean(p32, na.rm = T),
-  TripType_33 = mean(p33, na.rm = T),
-  TripType_34 = mean(p34, na.rm = T),
-  TripType_35 = mean(p35, na.rm = T),
-  TripType_36 = mean(p36, na.rm = T),
-  TripType_37 = mean(p37, na.rm = T),
-  TripType_38 = mean(p38, na.rm = T),
-  TripType_39 = mean(p39, na.rm = T),
-  TripType_40 = mean(p40, na.rm = T),
-  TripType_41 = mean(p41, na.rm = T),
-  TripType_42 = mean(p42, na.rm = T),
-  TripType_43 = mean(p43, na.rm = T),
-  TripType_44 = mean(p44, na.rm = T),
-  TripType_999 = mean(p999, na.rm = T)
-),VisitNumber]
+  pred[,.(
+    TripType_3  = mean(p3,na.rm=T),
+    TripType_4  = mean(p4,na.rm=T),
+    TripType_5  = mean(p5,na.rm=T),
+    TripType_6  = mean(p6,na.rm=T),
+    TripType_7  = mean(p7,na.rm=T),
+    TripType_8  = mean(p8, na.rm = T),
+    TripType_9  = mean(p9, na.rm = T),
+    TripType_12 = mean(p12, na.rm = T),
+    TripType_14 = mean(p14, na.rm = T),
+    TripType_15 = mean(p15, na.rm = T),
+    TripType_18 = mean(p18, na.rm = T),
+    TripType_19 = mean(p19, na.rm = T),
+    TripType_20 = mean(p20, na.rm = T),
+    TripType_21 = mean(p21, na.rm = T),
+    TripType_22 = mean(p22, na.rm = T),
+    TripType_23 = mean(p23, na.rm = T),
+    TripType_24 = mean(p24, na.rm = T),
+    TripType_25 = mean(p25, na.rm = T),
+    TripType_26 = mean(p26, na.rm = T),
+    TripType_27 = mean(p27, na.rm = T),
+    TripType_28 = mean(p28, na.rm = T),
+    TripType_29 = mean(p29, na.rm = T),
+    TripType_30 = mean(p30, na.rm = T),
+    TripType_31 = mean(p31, na.rm = T),
+    TripType_32 = mean(p32, na.rm = T),
+    TripType_33 = mean(p33, na.rm = T),
+    TripType_34 = mean(p34, na.rm = T),
+    TripType_35 = mean(p35, na.rm = T),
+    TripType_36 = mean(p36, na.rm = T),
+    TripType_37 = mean(p37, na.rm = T),
+    TripType_38 = mean(p38, na.rm = T),
+    TripType_39 = mean(p39, na.rm = T),
+    TripType_40 = mean(p40, na.rm = T),
+    TripType_41 = mean(p41, na.rm = T),
+    TripType_42 = mean(p42, na.rm = T),
+    TripType_43 = mean(p43, na.rm = T),
+    TripType_44 = mean(p44, na.rm = T),
+    TripType_999 = mean(p999, na.rm = T)
+  ),VisitNumber]
 
 summary(sub)
 
-saveRDS(sub, "drf_visit_kitchen_sink_250.RDS")
-write.csv(sub, "drf_visit_kitchen_sink_250.csv", row.names = F)
-zip("drf_visit_kitchen_sink_250.zip", "drf_visit_kitchen_sink_250.csv")
+saveRDS(sub, "2step.RDS")
+write.csv(sub, "2step.csv", row.names = F)
+zip("drf_600_102.zip", "drf_600_102.csv")
 rm(sub)
 
-# Manual Adjustment -------------------------------------------------------
-for(i in 1:ncol(sub)){
-  while(mean(sub[,i] >))
-}
 
 # Ensemble Weighting ------------------------------------------------------
 pcadrf   <- sub
@@ -351,8 +368,8 @@ VisitNumber <- sub$VisitNumber
 sub2 <- (drf600*.75) + (pcadrf *.25)
 sub2 <- cbind(VisitNumber, sub2)
 
-saveRDS(sub2, "post_model_blend_drf600_pcadrf250_75_25.RDS")
-write.csv(sub2, "post_model_blend_drf600_pcadrf250_75_25.csv", row.names = F)
+saveRDS(sub2, "post_model_blend_drf600_glmdrf_75_25.RDS")
+write.csv(sub2, "post_model_blend_drf600_97_pca_01_xmas01_xgb01.csv", row.names = F)
 
 
 sub2 <- (drf600*.99) + (pcadrf *.01)
